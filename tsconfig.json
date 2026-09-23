@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "bun"
+    ],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "packages/**/*.ts",
+    "apps/**/*.ts",
+    "scripts/**/*.ts",
+    "tests/**/*.ts",
+    "examples/**/*.ts",
+    "playground/**/*.ts"
+  ],
+  "exclude": [
+    "playground/dist"
+  ]
+}

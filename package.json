@@ -1,0 +1,29 @@
+{
+  "name": "@usestrict/jev",
+  "description": "Run Laya locally with Bun: native ONNX inference, a TypeSafe-compatible API, and a bilingual decision playground.",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "playground"
+  ],
+  "scripts": {
+    "dev": "bun --watch apps/server/src/index.ts",
+    "start": "bun apps/server/src/index.ts",
+    "model:download": "bun scripts/download-model.ts",
+    "model:export": ".venv/bin/python scripts/export-model.py",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test tests",
+    "smoke": "bun scripts/smoke.ts",
+    "playground": "bun --hot playground/server.ts",
+    "playground:build": "bun build --target=bun --production --outdir=playground/dist playground/server.ts"
+  },
+  "devDependencies": {
+    "@huggingface/hub": "2.17.5",
+    "@types/bun": "1.4.2",
+    "@typesafe-ai/sdk": "0.6.0",
+    "typescript": "7.0.2"
+  }
+}

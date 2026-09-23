@@ -1,0 +1,13 @@
+{
+  "name": "@laya/runtime",
+  "description": "Native Laya inference for Bun with Hugging Face tokenization, ONNX execution, and typed decision decoding.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@huggingface/tokenizers": "0.2.0",
+    "onnxruntime-node": "1.30.0",
+    "@typesafe-ai/sdk": "0.6.0"
+  }
+}
