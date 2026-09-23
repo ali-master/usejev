@@ -1,0 +1,41 @@
+services:
+  server:
+    build:
+      context: .
+      target: server
+    image: laya-bun-server:local
+    init: true
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3000"
+      LAYA_MODEL_DIR: /models
+      LAYA_API_KEY: ${LAYA_API_KEY:-local-development}
+    ports:
+      - "127.0.0.1:${DOCKER_API_PORT:-3000}:3000"
+    volumes:
+      - type: bind
+        source: ${LAYA_MODEL_DIR:-./models/english/onnx}
+        target: /models
+        read_only: true
+        bind:
+          create_host_path: false
+    stop_grace_period: 120s
+
+  playground:
+    build:
+      context: .
+      target: playground
+    image: laya-bun-playground:local
+    init: true
+    restart: unless-stopped
+    environment:
+      PLAYGROUND_HOST: 0.0.0.0
+      PLAYGROUND_PORT: "3001"
+      LAYA_BASE_URL: http://server:3000
+      LAYA_API_KEY: ${LAYA_API_KEY:-local-development}
+    ports:
+      - "127.0.0.1:${DOCKER_PLAYGROUND_PORT:-3001}:3001"
+    depends_on:
+      server:
+        condition: service_healthy
