@@ -6,6 +6,17 @@ This monorepo includes an HTTP inference server and an English/Persian playgroun
 
 [Quick start](#quick-start) · [SDK example](#use-the-official-sdk) · [Development](#development) · [Configuration](#configuration) · [Architecture](docs/architecture.md)
 
+<p align="center">
+  <a href="docs/images/playground.jpg">
+    <img src="docs/images/playground.jpg" alt="Laya Playground homepage in dark mode, showing the demo library, inbox triage input, and typed questions." width="1120" />
+  </a>
+</p>
+<p align="center">
+  <strong>A playground for real-world decisions.</strong><br />
+  16 interactive demos · English &amp; Persian · Local inference<br />
+  <a href="#quick-start">Run it locally</a> · <a href="playground/README.md">Explore the playground</a>
+</p>
+
 ## What you can build
 
 Route support requests, classify feedback, score urgency, or check whether a condition is true. Laya evaluates the input against your questions and returns structured answers in one forward pass.
