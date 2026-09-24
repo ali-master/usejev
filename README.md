@@ -1,4 +1,8 @@
-# Laya on Bun
+<p align="center">
+  <img src="docs/images/laya-logo.png" alt="Laya — a violet L monogram with a mint decision branch" width="220" />
+</p>
+
+<h1 align="center">Laya on Bun</h1>
 
 Run Laya locally with **Bun, Hugging Face tokenizers, and native ONNX inference**. Ask structured questions, get typed decisions, and connect through the official `@typesafe-ai/sdk` using your own `baseURL`.
 
