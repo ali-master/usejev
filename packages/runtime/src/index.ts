@@ -5,6 +5,7 @@ import {InferenceSession, Tensor} from 'onnxruntime-node';
 import type {Question, SystemOneRequest, SystemOneResult} from '@typesafe-ai/sdk';
 import {type Manifest, prepareBatch, questionTypes} from './sequence';
 import {validateRequest, validateResult} from './validation';
+import {logPrediction} from './logger';
 
 export {validateRequest} from './validation';
 export type {Manifest} from './sequence';
@@ -73,6 +74,10 @@ export class LayaRuntime {
   }
 
   async predict(request: SystemOneRequest): Promise<SystemOneResult<SystemOneRequest['questions']>> {
+    return logPrediction(request, () => this.infer(request));
+  }
+
+  private async infer(request: SystemOneRequest): Promise<SystemOneResult<SystemOneRequest['questions']>> {
     validateRequest(request);
     const batch = prepareBatch(this.tokenizer, request, this.manifest);
     const count = batch.items.length;

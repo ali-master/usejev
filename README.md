@@ -180,6 +180,12 @@ To add a demo, define its English examples and questions in [`playground/src/dem
 
 ## Configuration
 
+### Runtime logs
+
+Each inference prints a paired `REQUEST` and `RESPONSE` (or `ERROR`) block to stderr, with a shared ID, UTC timestamp, elapsed time, and indented JSON. Responses include the model, answers, probabilities, and token usage. Colors are enabled in interactive terminals; redirected and Docker logs remain plain text. Set `NO_COLOR=1` to disable colors explicitly.
+
+Logs cover calls to `LayaRuntime.predict`, including direct runtime use. Timing includes validation and inference, but excludes the HTTP queue. HTTP requests rejected before inference are not included. Each payload is limited to 6,000 characters / 80 lines, with a visible truncation marker. Common credential keys are redacted recursively; arbitrary secrets or personal data inside free text are not detected. Set `LAYA_LOG=off` to disable runtime logging when handling sensitive payloads.
+
 Defaults work for local development. Copy [`.env.example`](.env.example) to `.env` for overrides; Bun loads it automatically. Paths below are relative to the repository root unless absolute.
 
 | Variable | Default | Purpose |
