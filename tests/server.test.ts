@@ -35,6 +35,31 @@ function clientFor(app: ReturnType<typeof createApp>, key = 'test') {
 const payload = {state: 'refund', questions: {refund: noul('Refund?')}};
 
 describe('Official TypeSafe SDK compatibility', () => {
+  test('response telemetry is numeric on success and errors without inventing inference metrics', async () => {
+    const app = createApp(engine, {apiKey: 'test'});
+    const {response} = await clientFor(app).systemOne(payload).withResponse();
+    expect(response.headers.get('server-timing')).toMatch(/app;dur=.*queue;dur=.*inference;dur=/);
+    expect(response.headers.get('x-laya-input-tokens')).toBe('42');
+    expect(response.headers.get('x-laya-output-tokens')).toBe('0');
+    const denied = await app.handle(new Request('http://localhost/v1/systemone', {method: 'POST'}));
+    const malformed = await app.handle(new Request('http://localhost/v1/systemone', {
+      method: 'POST', headers: {authorization: 'Bearer test', 'content-type': 'application/json'}, body: '{broken',
+    }));
+    expect(denied.status).toBe(401);
+    expect(malformed.status).toBe(400);
+    for (const res of [response, denied, malformed]) {
+      for (const name of ['x-response-time-ms', 'x-laya-process-cpu-ms', 'x-laya-process-cpu-percent', 'x-laya-process-rss-bytes', 'x-laya-process-heap-used-bytes', 'x-laya-pending-at-arrival']) {
+        expect(res.headers.has(name)).toBe(true);
+        expect(Number(res.headers.get(name))).toBeGreaterThanOrEqual(0);
+      }
+      expect(Number.isFinite(Number(res.headers.get('x-laya-process-rss-delta-bytes')))).toBe(true);
+      expect(res.headers.get('x-laya-model')).toBe('laya-english');
+    }
+    for (const res of [denied, malformed]) {
+      expect(res.headers.get('server-timing')).not.toContain('inference');
+      expect(res.headers.has('x-laya-input-tokens')).toBe(false);
+    }
+  });
   test('all primitives, inferred labels, metadata and model listing', async () => {
     const client = clientFor(createApp(engine));
     const {data, requestId, response} = await client.systemOne({

@@ -3,6 +3,7 @@ import {join} from 'node:path';
 import {Tokenizer} from '@huggingface/tokenizers';
 import {InferenceSession, Tensor} from 'onnxruntime-node';
 import type {Question, SystemOneRequest, SystemOneResult} from '@typesafe-ai/sdk';
+import {TypeSafeError} from '@typesafe-ai/sdk';
 import {type Manifest, prepareBatch, questionTypes} from './sequence';
 import {validateRequest, validateResult} from './validation';
 import {logPrediction} from './logger';
@@ -58,7 +59,7 @@ export function decodeAnswer(q: Question, logits: number[], act: number[], cfg: 
 export class LayaRuntime {
   private constructor(readonly manifest: Manifest, readonly tokenizer: Tokenizer, private readonly session: InferenceSession) {
   }
-
+  
   static async load(directory: string): Promise<LayaRuntime> {
     const json = async (name: string) => JSON.parse(await readFile(join(directory, name), 'utf8'));
     const manifest = await json('manifest.json') as Manifest;
@@ -72,14 +73,20 @@ export class LayaRuntime {
     });
     return new LayaRuntime(manifest, tokenizer, session);
   }
-
+  
   async predict(request: SystemOneRequest): Promise<SystemOneResult<SystemOneRequest['questions']>> {
     return logPrediction(request, () => this.infer(request));
   }
-
+  
   private async infer(request: SystemOneRequest): Promise<SystemOneResult<SystemOneRequest['questions']>> {
     validateRequest(request);
     const batch = prepareBatch(this.tokenizer, request, this.manifest);
+    const names = Object.keys(request.questions);
+    for (const [index, item] of batch.items.entries()) {
+      if (item.stateTokens > item.stateTokenBudget) {
+        throw new TypeSafeError(`State exceeds the token budget for question ${JSON.stringify(names[index])}: ${item.stateTokens} tokens supplied, ${item.stateTokenBudget} available (${this.manifest.max_len} total including instructions and options). Shorten or summarize state; no inference was performed.`);
+      }
+    }
     const count = batch.items.length;
     const int64 = (values: number[], dims: number[]) => new Tensor('int64', BigInt64Array.from(values, BigInt), dims);
     const output = await this.session.run({
@@ -104,7 +111,7 @@ export class LayaRuntime {
     }
     return result;
   }
-
+  
   async dispose() {
     await this.session.release();
   }

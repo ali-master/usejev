@@ -5,7 +5,7 @@ import {validateRequest} from '@laya/runtime';
 
 export interface Engine {
   manifest: { checkpoint: string; revision: string };
-
+  
   predict(request: SystemOneRequest): Promise<SystemOneResult<SystemOneRequest['questions']>>;
 }
 
@@ -21,20 +21,58 @@ export function createApp(engine: Engine, options: ServerOptions = {}) {
   const model = `laya-${engine.manifest.checkpoint}`;
   const aliases = new Set(['laya', model]);
   const error = (message: string, code: string) => ({error: {message, type: code, code}});
+  const metrics = new WeakMap<Request, {
+    started: number; cpu: NodeJS.CpuUsage; rss: number; pending: number;
+    queueMs?: number; inferenceMs?: number;
+  }>();
+  const finishMetrics = (request: Request, headers: Record<string, unknown>) => {
+    const sample = metrics.get(request);
+    if (!sample) return;
+    const elapsed = performance.now() - sample.started;
+    const cpu = process.cpuUsage(sample.cpu);
+    const memory = process.memoryUsage();
+    const cpuMs = (cpu.user + cpu.system) / 1000;
+    const timing = [`app;dur=${elapsed.toFixed(2)}`];
+    if (sample.queueMs !== undefined) timing.push(`queue;dur=${sample.queueMs.toFixed(2)}`);
+    if (sample.inferenceMs !== undefined) timing.push(`inference;dur=${sample.inferenceMs.toFixed(2)}`);
+    Object.assign(headers, {
+      'server-timing': timing.join(', '),
+      'x-response-time-ms': elapsed.toFixed(2),
+      'x-laya-process-cpu-ms': cpuMs.toFixed(2),
+      'x-laya-process-cpu-percent': (cpuMs / Math.max(elapsed, 0.001) * 100).toFixed(2),
+      'x-laya-process-rss-bytes': String(memory.rss),
+      'x-laya-process-rss-delta-bytes': String(memory.rss - sample.rss),
+      'x-laya-process-heap-used-bytes': String(memory.heapUsed),
+      'x-laya-pending-at-arrival': String(sample.pending),
+      'x-laya-model': model,
+    });
+    metrics.delete(request);
+  };
   return new Elysia()
     .onRequest(({request, set}) => {
+      metrics.set(request, {
+        started: performance.now(),
+        cpu: process.cpuUsage(),
+        rss: process.memoryUsage.rss(),
+        pending
+      });
       set.headers['x-typesafe-request-id'] = crypto.randomUUID();
       if (new URL(request.url).pathname === '/health') return;
       if (options.apiKey) {
         const expected = Buffer.from(`Bearer ${options.apiKey}`);
         const actual = Buffer.from(request.headers.get('authorization') ?? '');
         if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+          finishMetrics(request, set.headers);
           set.status = 401;
           return error('Invalid API key.', 'authentication_error');
         }
       }
     })
-    .onError(({code, error: cause, set}) => {
+    .mapResponse(({request, set}) => {
+      finishMetrics(request, set.headers);
+    })
+    .onError(({request, code, error: cause, set}) => {
+      finishMetrics(request, set.headers);
       if (cause instanceof TypeSafeError || code === 'PARSE' || code === 'VALIDATION') {
         set.status = 400;
         return error(cause instanceof Error ? cause.message : 'Invalid request.', 'invalid_request');
@@ -67,9 +105,20 @@ export function createApp(engine: Engine, options: ServerOptions = {}) {
         return error('Inference queue is full.', 'rate_limit_error');
       }
       pending++;
+      const queuedAt = performance.now();
       const run = tail.then(async () => {
+        const started = performance.now();
+        const sample = metrics.get(request)!;
+        sample.queueMs = started - queuedAt;
         request.signal.throwIfAborted();
-        return engine.predict(body);
+        try {
+          const result = await engine.predict(body);
+          set.headers['x-laya-input-tokens'] = String(result.usage.input_tokens);
+          set.headers['x-laya-output-tokens'] = String(result.usage.output_tokens);
+          return result;
+        } finally {
+          sample.inferenceMs = performance.now() - started;
+        }
       });
       tail = run.catch(() => undefined);
       try {

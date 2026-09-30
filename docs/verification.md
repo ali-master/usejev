@@ -8,7 +8,7 @@ Verified locally on macOS arm64 with Bun 1.4.2, ONNX Runtime 1.30.0 and the Engl
 - TypeScript typecheck passed.
 - 11 contract/unit tests passed (31 assertions), using the unmodified official `@typesafe-ai/sdk@0.6.0`.
 - Full pretrained checkpoint exported to float32 ONNX with strict weight loading.
-- PyTorch/ONNX logits and action logits matched on five fixtures (`rtol=0.002`, `atol=0.002`): standalone one-option choice, mixed choice/score/noul, JSON state with Unicode and a one-option question, a truncated 512-token state, and structured instructions/criteria.
+- Export-time PyTorch/ONNX logits and action logits matched on five fixtures (`rtol=0.002`, `atol=0.002`): standalone one-option choice, mixed choice/score/noul, JSON state with Unicode and a one-option question, a truncated 512-token state, and structured instructions/criteria. Serving now rejects oversized state rather than silently truncating it. The smoke check retains token parity for all five fixtures, checks HTTP 400 for the oversized fixture, and checks inference parity for the other four.
 - JavaScript input IDs, attention masks, marker positions/masks and question types matched the Python fixtures exactly. A masked second marker is added for standalone one-option export execution, and the output is compared to the original unpadded reference.
 - Official SDK → actual HTTP socket → Bun → native ONNX passed all five fixtures. Decoded numeric outputs matched the Python reference logits within 0.002.
 - The application entrypoint served `/health` with `status: ready`, `model: laya-english`, and `runtime: bun-onnx`.

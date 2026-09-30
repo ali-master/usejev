@@ -19,6 +19,15 @@ try {
   for (const fixture of fixtures) {
     const batch = prepareBatch(runtime.tokenizer, fixture.request, runtime.manifest);
     for (const key of ['input_ids', 'attention_mask', 'marker_pos', 'marker_mask', 'qtype'] as const) deepStrictEqual(batch[key], fixture.inputs[key], `Python/JS token parity: ${key}`);
+    if (batch.items.some(item => item.stateTokens > item.stateTokenBudget)) {
+      const response = await fetch(`http://127.0.0.1:${app.server!.port}/v1/systemone`, {
+        method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(fixture.request),
+      });
+      deepStrictEqual(response.status, 400);
+      ok((await response.json()).error.message.includes('State exceeds the token budget'));
+      console.log('PASS: legacy truncated fixture is rejected before inference.');
+      continue;
+    }
     const started = performance.now();
     const result = await client.systemOne(fixture.request);
     Object.entries(fixture.request.questions).forEach(([name, question], i) => {

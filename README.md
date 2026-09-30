@@ -180,6 +180,10 @@ To add a demo, define its English examples and questions in [`playground/src/dem
 
 ## Configuration
 
+### Model downloads
+
+`bun run model:download` displays one live terminal line with file position, progress, transferred size, speed, ETA, and attempt count. Transient failures retry up to five times with exponential delays of 1, 2, 4, 8, and 16 seconds; the line shows the retry number and countdown. Each retry restarts the current file from zero. A size-checked `.partial` file is renamed only after completion. Authentication, missing-file, and local filesystem errors stop immediately. Redirected output uses plain status lines instead of terminal redraws; `NO_COLOR=1` disables colors.
+
 ### Runtime logs
 
 Each inference prints a paired `REQUEST` and `RESPONSE` (or `ERROR`) block to stderr, with a shared ID, UTC timestamp, elapsed time, and indented JSON. Responses include the model, answers, probabilities, and token usage. Colors are enabled in interactive terminals; redirected and Docker logs remain plain text. Set `NO_COLOR=1` to disable colors explicitly.
@@ -218,15 +222,36 @@ The English checkpoint has been exported and parity-checked locally. Multilingua
 
 ## HTTP API
 
+### Response metrics
+
+Responses include the following diagnostic headers, including application error responses:
+
+| Header | Meaning |
+| --- | --- |
+| `Server-Timing` | `app`, plus `queue` and `inference` durations when execution reaches those stages (milliseconds) |
+| `X-Response-Time-Ms` | Time from the request hook to response preparation; excludes network transfer and final serialization |
+| `X-Laya-Process-Cpu-Ms` | Process user + system CPU time consumed during that interval |
+| `X-Laya-Process-Cpu-Percent` | CPU time / elapsed time × 100; one-core basis, can exceed 100% |
+| `X-Laya-Process-Rss-Bytes` | Process resident RAM at response preparation, including resident native allocations |
+| `X-Laya-Process-Rss-Delta-Bytes` | RSS change since arrival; can be negative, is not peak memory |
+| `X-Laya-Process-Heap-Used-Bytes` | Used JavaScript heap at response preparation; excludes native ONNX memory |
+| `X-Laya-Pending-At-Arrival` | Running + queued inference requests observed when this request arrived |
+| `X-Laya-Model` | Resident model name |
+| `X-Laya-Input-Tokens`, `X-Laya-Output-Tokens` | Usage for successful inference only |
+
+CPU and memory measurements are **process-wide**, not isolated per-request costs. Overlapping requests, queue waiting, garbage collection, and other Bun work can contribute. `inference` includes runtime validation, tokenization, and decoding as well as native execution. These headers complement the existing `X-TypeSafe-Request-Id`; access them through the official SDK's `.withResponse()` response headers.
+
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/health` | Readiness, resident checkpoint, and revision; no authentication |
 | `GET` | `/v1/models` | List the resident model; available through `client.models.list()` |
 | `POST` | `/v1/systemone` | Evaluate `state` against typed `questions` |
 
-Requests accept text, JSON objects/arrays, or `null` as state. The server limits bodies to 1 MiB, questions to 32, and options per question to 32. Option token budgets are validated; long input state is truncated to the checkpoint's token budget.
+Requests accept text, JSON objects/arrays, or `null` as state. The server limits bodies to 1 MiB, questions to 32, and options per question to 32. Option token budgets are validated. State that exceeds the remaining token budget is rejected with HTTP `400` before inference; the error reports the question, supplied state tokens, and available capacity. The English checkpoint has a 512-token total budget shared by instructions, options, and state. Summarize long histories explicitly in the caller; the runtime does not silently discard recent observations or fields at the end of a JSON object. Instruction and option packing still follows upstream length limits.
 
 At most eight requests are admitted, with one native forward pass running at a time. Excess traffic receives `429` and `Retry-After`. Queued cancelled requests are skipped; native inference already in progress cannot be interrupted. Output token usage is zero because the model does not generate text.
+
+For an explicit caller-side summary example, see [`examples/silver-direction.json`](examples/silver-direction.json). It replaces a 120-observation price history with its sample count, first/last observations, minimum/maximum, and supplied returns. This is a lossy summary, not a forecast validation. With the English checkpoint it uses 330 total tokens; the original state used 3,625 tokens against a 355-token state budget and silently lost recent observations before the overflow guard was added. A successful response does not establish market-prediction accuracy.
 
 ## Docker
 

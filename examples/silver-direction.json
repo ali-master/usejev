@@ -1,0 +1,41 @@
+{
+  "model": "laya-english",
+  "state": {
+    "asset": "SILVER",
+    "observedAt": "2026-09-30T11:55:09.673Z",
+    "horizonMs": 3600000,
+    "priceTomanPerGram": 475000,
+    "returnsBps": {
+      "last1Minutes": 0,
+      "last5Minutes": 85,
+      "last15Minutes": 0,
+      "last60Minutes": null
+    },
+    "historySummary": {
+      "sampleCount": 120,
+      "first": {
+        "observedAt": "2026-09-30T10:55:27.356Z",
+        "priceToman": 476000
+      },
+      "last": {
+        "observedAt": "2026-09-30T11:55:09.673Z",
+        "priceToman": 475000
+      },
+      "minimumPrice": 471000,
+      "maximumPrice": 478000
+    }
+  },
+  "questions": {
+    "direction": {
+      "type": "choice",
+      "instructions": {
+        "question": "Will this asset price be higher or lower than priceTomanPerGram after horizonMs milliseconds?",
+        "goal": "Forecast relative price direction from the supplied timestamped prices and returns. This is a binary market forecast, NOT a portfolio recommendation. Express weak or flat evidence with near-equal probabilities. Do not manufacture certainty. Do not invent news, volume, order-book data or future observations. Wallet availability does not determine price direction. Execution, costs, sizing and loss limits are handled separately; a direction is not an instruction to submit an order."
+      },
+      "criteria": {
+        "buy": "The future price is more likely higher than the current price.",
+        "sell": "The future price is more likely lower than the current price."
+      }
+    }
+  }
+}

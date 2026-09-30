@@ -58,9 +58,16 @@ export function buildSequence(tokenizer: Tokenizer, state: SystemOneRequest['sta
   }
   ids.push(cfg.special_tokens.sep);
   const room = Math.max(0, cfg.max_len - ids.length - 1);
-  ids.push(...encode(render(state)).slice(0, room), cfg.special_tokens.sep);
+  const stateIds = encode(render(state));
+  ids.push(...stateIds.slice(0, room), cfg.special_tokens.sep);
   if (markers.some(m => m >= cfg.max_len)) throw new Error('Options exceed the model token budget.');
-  return {ids: ids.slice(0, cfg.max_len), markers, qtype: questionTypes[q.type]};
+  return {
+    ids: ids.slice(0, cfg.max_len),
+    markers,
+    qtype: questionTypes[q.type],
+    stateTokens: stateIds.length,
+    stateTokenBudget: room
+  };
 }
 
 export function prepareBatch(tokenizer: Tokenizer, request: SystemOneRequest, cfg: Manifest) {
